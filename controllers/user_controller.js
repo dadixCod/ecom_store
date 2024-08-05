@@ -25,14 +25,12 @@ exports.register = handleAsync(async (req, res) => {
           password,
         });
 
-        const token = crypto.randomBytes(32).toString("hex");
-        newUser.verificationToken = token;
-        newUser.verificationExpires = Date.now() + 3600000;
         await newUser.save();
-        await sendVerificationMail(email, token);
+
         res.status(201).json({
           status: "success",
-          message: "A verification mail was sent .Please Verify your email",
+          message: "User created successfully , Please verify your email",
+          user: newUser,
         });
       } else {
         res.status(403).json({
@@ -97,30 +95,55 @@ exports.login = handleAsync(async (req, res) => {
   }
 });
 
+exports.sendOtp = handleAsync(async (req, res) => {
+  const { email } = req.body;
+
+  const newUser = await User.findOne({ email });
+  if (!newUser) {
+    return res.status(404).json({
+      status: "Failed",
+      message: "User not found with that email",
+    });
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000);
+  newUser.verificationOTP = otp;
+  newUser.OTPExpires = Date.now() + 3600000;
+
+  await newUser.save();
+  await sendVerificationMail(email, { username: newUser.username, otp });
+  res.status(200).json({
+    success: "Success",
+    message: "OTP was sent successfully to your email.",
+  });
+});
+
 //Verify email
 
 exports.verifyEmail = handleAsync(async (req, res) => {
-  const { token } = req.params;
+  const { userId } = req.params;
+  const { otp } = req.body;
 
-  const user = await User.findOne({
-    verificationToken: token,
-    verificationExpires: { $gt: Date.now() },
-  });
+  const user = await User.findById(userId);
 
   if (!user) {
-    return res.status(400).json({ message: "Invalid or expired token" });
+    return res.status(400).json({ message: "User not found" });
   }
 
-  user.isVerified = true;
-  user.verificationToken = undefined;
-  user.verificationExpires = undefined;
+  if (user.verificationOTP === otp && user.OTPExpires >= Date.now()) {
+    user.isVerified = true;
+    user.verificationOTP = undefined;
+    user.OTPExpires = undefined;
 
-  await user.save();
+    await user.save();
 
-  res.status(200).json({
-    status: "success",
-    message: "Email verified successfully",
-  });
+    res.status(200).json({
+      status: "success",
+      message: "Email verified successfully",
+    });
+  } else {
+    return res.status(400).json({ message: "Invalid or expired otp" });
+  }
 });
 
 exports.sendResetPassword = handleAsync(async (req, res) => {

@@ -1,4 +1,7 @@
 const nodemailer = require("nodemailer");
+const fs = require("fs");
+const handlebars = require("handlebars");
+const path = require("path");
 
 const transporter = nodemailer.createTransport({
   service: "hotmail",
@@ -19,12 +22,18 @@ exports.sendResetEmail = async (email, token) => {
   return transporter.sendMail(mailOptions);
 };
 
-exports.sendVerificationMail = async (email, token) => {
+exports.sendVerificationMail = async (email, payload) => {
+  const source = fs.readFileSync(
+    path.join(__dirname, "..", "/templates/verification_temp.handlebars"),
+    "utf8"
+  );
+  const compiledTemplate = handlebars.compile(source);
+
   const mailOptions = {
     from: process.env.EMAIL,
     to: email,
     subject: "Storily Email Verification",
-    text: `Please verify your email by clicking on the link below : http://localhost:3000/verification/${token}`,
+    html: compiledTemplate(payload),
   };
   return transporter.sendMail(mailOptions);
 };

@@ -19,8 +19,8 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  verificationToken: String,
-  verificationExpires: Date,
+  verificationOTP: Number,
+  OTPExpires: Date,
   resetPasswordToken: String,
   resetPasswordExpires: Date,
 });
