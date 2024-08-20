@@ -1,7 +1,8 @@
 const User = require("../models/user");
 const bcrypt = require("bcrypt");
-const handleAsync = require("../utils/async_handler");
-const jwtGenerator = require("../utils/jwt_generator");
+const handleAsync = require("../utils/asyncHandler");
+const jwtGenerator = require("../utils/jwtGenerator");
+const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { sendResetEmail, sendVerificationMail } = require("../utils/mailer");
 
@@ -23,6 +24,7 @@ exports.register = handleAsync(async (req, res) => {
           email,
           username,
           password,
+          role: "user",
         });
 
         await newUser.save();
@@ -92,6 +94,11 @@ exports.login = handleAsync(async (req, res) => {
         message: "User does not exist",
       });
     }
+  } else {
+    return res.status(400).json({
+      status: "failed",
+      message: "Missing credentials",
+    });
   }
 });
 
@@ -182,5 +189,28 @@ exports.passwordResetToken = handleAsync(async (req, res) => {
   res.status(200).json({
     status: "success",
     message: "Password reset successful",
+  });
+});
+
+exports.checkAuth = handleAsync(async (req, res) => {
+  const token = req.header("token");
+  if (!token) {
+    return res.status(401).send("Access denied. No token provided.");
+  }
+  jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+    if (err) {
+      // If the token is invalid or expired
+      return res
+        .status(401)
+        .json({
+          status: "failed",
+          message: "Session expired , please log in again .",
+        });
+    }
+
+    // If the token is valid, you can proceed with whatever you want to do
+    return res
+      .status(200)
+      .json({ status: "success", message: "Token is valid.", data: decoded });
   });
 });
